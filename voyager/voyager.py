@@ -161,19 +161,20 @@ class Voyager:
         self.task = task
         self.context = context
         if reset_env:
-            self.env.reset()
+            events = self.env.reset()
             
         difficulty = (
             "easy" if len(self.curriculum_agent.completed_tasks) > 15 else "peaceful"
         )
         # step to peek an observation
-        events = self.env.obs()
         print(events)
         skills = self.skill_manager.retrieve_skills(query=self.context)
         print(
             f"\033[33mRender Action Agent system message with {len(skills)} skills\033[0m"
         )
+        # TODO: 修改 render_system_message 以适应 stardojo 环境
         system_message = self.action_agent.render_system_message(skills=skills)
+        # TODO: 修改 render_human_message 以适应 stardojo 环境
         human_message = self.action_agent.render_human_message(
             events=events, code="", task=self.task, context=context, critique=""
         ) # 需要修改 human_message, 读取
@@ -194,6 +195,7 @@ class Voyager:
         '''
         if self.action_agent_rollout_num_iter < 0:
             raise ValueError("Agent must be reset before stepping")
+        
         # 调用 action agent 来写代码
         ai_message = self.action_agent.llm(self.messages)
         print(f"\033[34m****Action Agent ai message****\n{ai_message.content}\033[0m")
@@ -287,8 +289,7 @@ class Voyager:
 
     def learn(self, reset_env=True):
         
-        self.env.reset()
-        self.last_events = self.env.step("")
+        self.last_events = self.env.reset()
 
         while True:
             if self.recorder.iteration > self.max_iterations:

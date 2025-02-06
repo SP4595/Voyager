@@ -42,7 +42,7 @@ class VoyagerEnv(gym.Env):
         raise NotImplementedError("render is not implemented")
 
     def reset(self) -> Tuple[ObsType, Dict[str, Any]]:
-        return self.reset()
+        return self.env.reset()
 
     def close(self):
         self.env.close()
