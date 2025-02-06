@@ -17,31 +17,29 @@ from .agents import SkillManager
 class Voyager:
     def __init__(
         self,
-        mc_port: int = None,
-        azure_login: Dict[str, str] = None,
-        server_port: int = 3000,
+        stardojo_env_settings : dict = {},
         openai_api_key: str = None,
         env_wait_ticks: int = 20,
         env_request_timeout: int = 600,
         max_iterations: int = 160,
         reset_placed_if_failed: bool = False,
-        action_agent_model_name: str = "gpt-4",
+        action_agent_model_name: str = "gpt-4o",
         action_agent_temperature: float = 0,
         action_agent_task_max_retries: int = 4,
         action_agent_show_chat_log: bool = True,
         action_agent_show_execution_error: bool = True,
-        curriculum_agent_model_name: str = "gpt-4",
+        curriculum_agent_model_name: str = "gpt-4o",
         curriculum_agent_temperature: float = 0,
-        curriculum_agent_qa_model_name: str = "gpt-3.5-turbo",
+        curriculum_agent_qa_model_name: str = "gpt-4o",
         curriculum_agent_qa_temperature: float = 0,
         curriculum_agent_warm_up: Dict[str, int] = None,
         curriculum_agent_core_inventory_items: str = r".*_log|.*_planks|stick|crafting_table|furnace"
         r"|cobblestone|dirt|coal|.*_pickaxe|.*_sword|.*_axe",
         curriculum_agent_mode: str = "auto",
-        critic_agent_model_name: str = "gpt-4",
+        critic_agent_model_name: str = "gpt-4o",
         critic_agent_temperature: float = 0,
         critic_agent_mode: str = "auto",
-        skill_manager_model_name: str = "gpt-3.5-turbo",
+        skill_manager_model_name: str = "gpt-4o",
         skill_manager_temperature: float = 0,
         skill_manager_retrieval_top_k: int = 5,
         openai_api_request_timeout: int = 240,
@@ -101,12 +99,8 @@ class Voyager:
         :param resume: whether to resume from checkpoint
         """
         # init env
-        self.env = VoyagerEnv(
-            mc_port=mc_port,
-            azure_login=azure_login,
-            server_port=server_port,
-            request_timeout=env_request_timeout,
-        )
+        self.env = VoyagerEnv(configs=stardojo_env_settings)
+        
         self.env_wait_ticks = env_wait_ticks
         self.reset_placed_if_failed = reset_placed_if_failed
         self.max_iterations = max_iterations
@@ -167,20 +161,14 @@ class Voyager:
         self.task = task
         self.context = context
         if reset_env:
-            self.env.reset(
-                options={
-                    "mode": "soft",
-                    "wait_ticks": self.env_wait_ticks,
-                }
-            )
+            self.env.reset()
+            
         difficulty = (
             "easy" if len(self.curriculum_agent.completed_tasks) > 15 else "peaceful"
         )
         # step to peek an observation
-        events = self.env.step(
-            "bot.chat(`/time set ${getNextTime()}`);\n"
-            + f"bot.chat('/difficulty {difficulty}');"
-        )
+        events = self.env.obs()
+        print(events)
         skills = self.skill_manager.retrieve_skills(query=self.context)
         print(
             f"\033[33mRender Action Agent system message with {len(skills)} skills\033[0m"
@@ -188,7 +176,7 @@ class Voyager:
         system_message = self.action_agent.render_system_message(skills=skills)
         human_message = self.action_agent.render_human_message(
             events=events, code="", task=self.task, context=context, critique=""
-        )
+        ) # 需要修改 human_message, 读取
         self.messages = [system_message, human_message]
         print(
             f"\033[32m****Action Agent human message****\n{human_message.content}\033[0m"
@@ -201,13 +189,18 @@ class Voyager:
         self.env.close()
 
     def step(self):
+        '''
+        每个步骤在做什么
+        '''
         if self.action_agent_rollout_num_iter < 0:
             raise ValueError("Agent must be reset before stepping")
+        # 调用 action agent 来写代码
         ai_message = self.action_agent.llm(self.messages)
         print(f"\033[34m****Action Agent ai message****\n{ai_message.content}\033[0m")
         self.conversations.append(
             (self.messages[0].content, self.messages[1].content, ai_message.content)
         )
+        # 与环境交互，执行动作
         parsed_result = self.action_agent.process_ai_message(message=ai_message)
         success = False
         if isinstance(parsed_result, dict):
@@ -293,23 +286,8 @@ class Voyager:
         return messages, reward, done, info
 
     def learn(self, reset_env=True):
-        if self.resume:
-            # keep the inventory
-            self.env.reset(
-                options={
-                    "mode": "soft",
-                    "wait_ticks": self.env_wait_ticks,
-                }
-            )
-        else:
-            # clear the inventory
-            self.env.reset(
-                options={
-                    "mode": "hard",
-                    "wait_ticks": self.env_wait_ticks,
-                }
-            )
-            self.resume = True
+        
+        self.env.reset()
         self.last_events = self.env.step("")
 
         while True:

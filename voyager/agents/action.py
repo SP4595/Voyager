@@ -3,7 +3,7 @@ import time
 
 import voyager.utils as U
 from javascript import require
-from langchain_openai import ChatOpenAI
+from langchain_openai.chat_models import ChatOpenAI
 from langchain.prompts import SystemMessagePromptTemplate
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
@@ -73,6 +73,9 @@ class ActionAgent:
             return f"Chests: None\n\n"
 
     def render_system_message(self, skills=[]):
+        '''
+        这个可能是记忆的来源
+        '''
         system_template = load_prompt("action_template")
         # FIXME: Hardcoded control_primitives
         base_skills = [
@@ -82,7 +85,7 @@ class ActionAgent:
             "placeItem",
             "smeltItem",
             "killMob",
-        ]
+        ] # 基础模型
         if not self.llm.model_name == "gpt-3.5-turbo":
             base_skills += [
                 "useChest",
