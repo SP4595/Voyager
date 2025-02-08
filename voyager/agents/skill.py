@@ -72,7 +72,7 @@ class SkillManager:
             print(f"\033[33mSkill {program_name} already exists. Rewriting!\033[0m")
             self.vectordb._collection.delete(ids=[program_name])
             i = 2
-            while f"{program_name}V{i}.js" in os.listdir(f"{self.ckpt_dir}/skill/code"):
+            while f"{program_name}V{i}.py" in os.listdir(f"{self.ckpt_dir}/skill/code"):
                 i += 1
             dumped_program_name = f"{program_name}V{i}"
         else:
@@ -90,7 +90,7 @@ class SkillManager:
             self.skills
         ), "vectordb is not synced with skills.json"
         U.dump_text(
-            program_code, f"{self.ckpt_dir}/skill/code/{dumped_program_name}.js"
+            program_code, f"{self.ckpt_dir}/skill/code/{dumped_program_name}.py"
         )
         U.dump_text(
             skill_description,
